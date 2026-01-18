@@ -5,156 +5,72 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Niji GIF Player</title>
     
-    <!-- PWA用の設定 -->
+    <!-- PWA設定：必ず別ファイルの manifest.json を読み込む -->
+    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#000000">
     <link rel="apple-touch-icon" href="icon.jpg">
     
-    <!-- manifest.json をここに埋め込みました -->
-    <link rel="manifest" href='data:application/manifest+json,{
-        "name": "Niji GIF Player",
-        "short_name": "NijiGIF",
-        "start_url": "./index.html",
-        "display": "standalone",
-        "background_color": "#000000",
-        "theme_color": "#000000",
-        "description": "Niji Loop Player",
-        "icons": [
-            {
-                "src": "icon.png",
-                "sizes": "192x192",
-                "type": "image/png"
-            },
-            {
-                "src": "icon.png",
-                "sizes": "512x512",
-                "type": "image/png"
-            }
-        ]
-    }'>
-    
     <style>
-        /* CSSスタイル */
         body {
-            margin: 0;
-            padding: 0;
-            background-color: #000;
-            width: 100vw;
-            height: 100vh;
-            overflow: hidden;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-family: sans-serif;
-            user-select: none;
-            -webkit-user-select: none;
-            /* iOSでのタップハイライトを消す */
-            -webkit-tap-highlight-color: transparent;
+            margin: 0; padding: 0; background-color: #000;
+            width: 100vw; height: 100vh; overflow: hidden;
+            display: flex; justify-content: center; align-items: center;
+            font-family: sans-serif; user-select: none; -webkit-user-select: none;
         }
-
-        .image-wrapper {
-            position: relative;
-            width: 100%;
-            height: 100%;
-        }
-
-        /* 画像を画面いっぱいに広げる設定 */
+        .image-wrapper { position: relative; width: 100%; height: 100%; }
         img#niji-gif {
-            display: block;
-            width: 100%;
-            height: 100%;
-            object-fit: contain; /* 比率維持で最大化 */
-            pointer-events: none;
+            display: block; width: 100%; height: 100%;
+            object-fit: contain; pointer-events: none;
         }
-
-        /* 全画面ボタンのデザイン */
         #fullscreen-btn {
-            position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 10px 20px;
+            position: absolute; bottom: 30px; left: 50%;
+            transform: translateX(-50%); padding: 10px 20px;
             background-color: rgba(50, 50, 50, 0.4);
             border: 1px solid rgba(255, 255, 255, 0.3);
-            color: #fff;
-            font-size: 14px;
-            cursor: pointer;
-            border-radius: 20px;
-            z-index: 100;
-            backdrop-filter: blur(4px);
-            transition: opacity 0.3s, background-color 0.3s;
+            color: #fff; border-radius: 20px; z-index: 100;
+            backdrop-filter: blur(4px); cursor: pointer;
         }
-
-        /* ホバー時の挙動 */
-        #fullscreen-btn:hover {
-            background-color: rgba(255, 255, 255, 0.8);
-            color: #000;
-            opacity: 1 !important;
+        body:fullscreen #fullscreen-btn, body[data-mode="standalone"] #fullscreen-btn {
+            opacity: 0; transition: opacity 0.3s;
         }
-
-        /* アプリモードや全画面時はボタンを薄くする */
-        body:fullscreen #fullscreen-btn,
-        body[data-mode="standalone"] #fullscreen-btn {
-            opacity: 0.0; /* 完全に消したい場合は0、薄く残すなら0.3 */
-        }
-        /* マウスを乗せた時だけ表示 */
-        body:fullscreen #fullscreen-btn:hover,
-        body[data-mode="standalone"] #fullscreen-btn:hover {
-            opacity: 1.0;
+        body:fullscreen #fullscreen-btn:hover, body[data-mode="standalone"] #fullscreen-btn:hover {
+            opacity: 1;
         }
     </style>
 </head>
 <body>
-
     <div class="image-wrapper">
         <img src="niji.gif" alt="Niji Loop" id="niji-gif">
         <button id="fullscreen-btn">全画面表示</button>
     </div>
 
     <script>
-        // --- JavaScript (UI操作 & PWA登録) ---
-
-        // 1. Service Workerの登録
-        // (PWAとして動くために必須。sw.jsファイルを探しに行きます)
+        // Service Worker登録
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('./sw.js')
-                    .then(reg => console.log('SW Registered!', reg.scope))
-                    .catch(err => console.error('SW Failed:', err));
-            });
+            navigator.serviceWorker.register('./sw.js')
+            .then(() => console.log('SW OK'))
+            .catch(err => console.error('SW Error:', err));
         }
-
-        // 2. スタンドアロンモード（アプリとして起動中）の判定
+        
+        // PWAモード判定
         if (window.matchMedia('(display-mode: standalone)').matches) {
             document.body.setAttribute('data-mode', 'standalone');
         }
 
-        // 3. 全画面ボタンの動作
+        // 全画面処理
         const btn = document.getElementById('fullscreen-btn');
-        const imgWrapper = document.querySelector('.image-wrapper');
-
-        // クリックで全画面切り替え
-        btn.addEventListener('click', toggleFullScreen);
-
-        // 画面をダブルクリックでも切り替えられるようにする（便利機能）
-        imgWrapper.addEventListener('dblclick', toggleFullScreen);
-
-        function toggleFullScreen() {
+        const toggle = () => {
             if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(e => console.log(e));
+                document.documentElement.requestFullscreen().catch(()=>{});
             } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
-                }
+                if (document.exitFullscreen) document.exitFullscreen();
             }
-        }
-
-        // 全画面の状態が変わった時にボタンの文字を変える
+        };
+        btn.addEventListener('click', toggle);
+        document.querySelector('.image-wrapper').addEventListener('dblclick', toggle);
+        
         document.addEventListener('fullscreenchange', () => {
-            if (document.fullscreenElement) {
-                btn.textContent = "全画面解除";
-            } else {
-                btn.textContent = "全画面表示";
-            }
+            btn.textContent = document.fullscreenElement ? "全画面解除" : "全画面表示";
         });
     </script>
 </body>
