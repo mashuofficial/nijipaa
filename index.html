@@ -6,12 +6,34 @@
     <title>Niji GIF Player</title>
     
     <!-- PWA用の設定 -->
-    <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#000000">
-    <link rel="apple-touch-icon" href="icon.jpg">
+    <link rel="apple-touch-icon" href="icon.png">
+    
+    <!-- manifest.json をここに埋め込みました -->
+    <link rel="manifest" href='data:application/manifest+json,{
+        "name": "Niji GIF Player",
+        "short_name": "NijiGIF",
+        "start_url": "./index.html",
+        "display": "standalone",
+        "background_color": "#000000",
+        "theme_color": "#000000",
+        "description": "Niji Loop Player",
+        "icons": [
+            {
+                "src": "icon.png",
+                "sizes": "192x192",
+                "type": "image/png"
+            },
+            {
+                "src": "icon.png",
+                "sizes": "512x512",
+                "type": "image/png"
+            }
+        ]
+    }'>
     
     <style>
-        /* 基本設定 */
+        /* CSSスタイル */
         body {
             margin: 0;
             padding: 0;
@@ -23,9 +45,10 @@
             justify-content: center;
             align-items: center;
             font-family: sans-serif;
-            /* iOSなどで長押し選択を防ぐ */
             user-select: none;
             -webkit-user-select: none;
+            /* iOSでのタップハイライトを消す */
+            -webkit-tap-highlight-color: transparent;
         }
 
         .image-wrapper {
@@ -34,43 +57,49 @@
             height: 100%;
         }
 
-        /* 画面いっぱいに拡大 */
+        /* 画像を画面いっぱいに広げる設定 */
         img#niji-gif {
             display: block;
             width: 100%;
             height: 100%;
-            object-fit: contain;
-            pointer-events: none; /* 画像のドラッグ防止 */
+            object-fit: contain; /* 比率維持で最大化 */
+            pointer-events: none;
         }
 
-        /* 全画面ボタン */
+        /* 全画面ボタンのデザイン */
         #fullscreen-btn {
             position: absolute;
             bottom: 30px;
             left: 50%;
             transform: translateX(-50%);
-            padding: 12px 24px;
-            background-color: rgba(60, 60, 60, 0.5);
-            border: 1px solid rgba(255, 255, 255, 0.4);
+            padding: 10px 20px;
+            background-color: rgba(50, 50, 50, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.3);
             color: #fff;
             font-size: 14px;
             cursor: pointer;
-            border-radius: 30px;
+            border-radius: 20px;
             z-index: 100;
             backdrop-filter: blur(4px);
-            transition: opacity 0.3s;
+            transition: opacity 0.3s, background-color 0.3s;
         }
 
-        /* 全画面中（standaloneモード含む）はボタンを薄くする */
-        body:fullscreen #fullscreen-btn,
-        body[data-mode="standalone"] #fullscreen-btn {
-            opacity: 0.3;
-        }
-        
+        /* ホバー時の挙動 */
         #fullscreen-btn:hover {
             background-color: rgba(255, 255, 255, 0.8);
             color: #000;
             opacity: 1 !important;
+        }
+
+        /* アプリモードや全画面時はボタンを薄くする */
+        body:fullscreen #fullscreen-btn,
+        body[data-mode="standalone"] #fullscreen-btn {
+            opacity: 0.0; /* 完全に消したい場合は0、薄く残すなら0.3 */
+        }
+        /* マウスを乗せた時だけ表示 */
+        body:fullscreen #fullscreen-btn:hover,
+        body[data-mode="standalone"] #fullscreen-btn:hover {
+            opacity: 1.0;
         }
     </style>
 </head>
@@ -82,21 +111,32 @@
     </div>
 
     <script>
-        // Service Workerの登録
+        // --- JavaScript (UI操作 & PWA登録) ---
+
+        // 1. Service Workerの登録
+        // (PWAとして動くために必須。sw.jsファイルを探しに行きます)
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js')
-                .then(() => console.log('Service Worker Registered'))
-                .catch((err) => console.log('SW Error:', err));
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('SW Registered!', reg.scope))
+                    .catch(err => console.error('SW Failed:', err));
+            });
         }
 
-        // スタンドアロンモード（アプリとして起動）の判定
+        // 2. スタンドアロンモード（アプリとして起動中）の判定
         if (window.matchMedia('(display-mode: standalone)').matches) {
             document.body.setAttribute('data-mode', 'standalone');
         }
 
-        // 全画面切り替え処理
+        // 3. 全画面ボタンの動作
         const btn = document.getElementById('fullscreen-btn');
+        const imgWrapper = document.querySelector('.image-wrapper');
+
+        // クリックで全画面切り替え
         btn.addEventListener('click', toggleFullScreen);
+
+        // 画面をダブルクリックでも切り替えられるようにする（便利機能）
+        imgWrapper.addEventListener('dblclick', toggleFullScreen);
 
         function toggleFullScreen() {
             if (!document.fullscreenElement) {
@@ -108,8 +148,13 @@
             }
         }
 
+        // 全画面の状態が変わった時にボタンの文字を変える
         document.addEventListener('fullscreenchange', () => {
-            btn.textContent = document.fullscreenElement ? "全画面解除" : "全画面表示";
+            if (document.fullscreenElement) {
+                btn.textContent = "全画面解除";
+            } else {
+                btn.textContent = "全画面表示";
+            }
         });
     </script>
 </body>
